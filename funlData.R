@@ -100,7 +100,7 @@ funl_Data <- function(df.data, col.unit, col.group, col.O, col.n, col.rt
     ) %>%
     ungroup() %>% 
     unnest(pois)
-    
+ 
   # prepare funnel df to return
   outA <- y %>%
     select(estimate, conf.low, conf.high, fnlLimit) %>%
