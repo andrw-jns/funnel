@@ -82,34 +82,28 @@ funl_Data <- function(df.data, col.unit, col.group, col.O, col.n, col.rt
   x <- expand.grid(fnlLimit = c("threeSigma", "twoSigma")
                    , events = events
                    , stringsAsFactors = FALSE) %>% 
-      mutate(confLevel = ifelse(fnlLimit == "threeSigma", 0.99, 0.95)) %>% 
-      arrange(fnlLimit) %>% 
-      group_by(fnlLimit, confLevel) %>%
-      nest(events) %>% 
-      ungroup()
+    mutate(conf.level = ifelse(fnlLimit == "threeSigma", 0.99, 0.95)) %>% 
+    arrange(fnlLimit) %>% 
+    group_by(fnlLimit) %>%
+    nest(events, conf.level) %>% 
+    ungroup()
   
   # calculate confidence intervals with exact Poisson test
   # poisson.test - x must be x must be finite, non-negative, and integer  
   # apply poisson.test to each event value in nested df
   # use broom::tidy to store results in dfs
   y <- x %>%
-    group_by(fnlLimit, confLevel) %>%
+    group_by(fnlLimit) %>%
     mutate(
-      pois = map(data, ~ sapply(.x$events, function(x)
-        cbind( tidy(poisson.test(x, alternative = "two.sided", conf.level = confLevel)), confLevel = confLevel)
-        , simplify = FALSE))
-      ) %>%
-      ungroup()
+      pois = map(data, ~ map2_df(.$events, .$conf.level, function(x, y)
+        tidy(poisson.test(x, alternative = "two.sided", conf.level = y))))
+    ) %>%
+    ungroup() %>% 
+    unnest(pois)
     
-  # can probably make this tidier
-  z <- y %>%
-    select(pois)
-  z <- combine(z$pois)  # combine - binds multiple dfs
-  z <- bind_rows(z)  # dplyr implementation of do.call(rbind, dfs) 
-  
   # prepare funnel df to return
-  outA <- z %>%
-    select(estimate, conf.low, conf.high, confLevel) %>%
+  outA <- y %>%
+    select(estimate, conf.low, conf.high, fnlLimit) %>%
     mutate(
       target = target
       , n = estimate / target
@@ -117,11 +111,9 @@ funl_Data <- function(df.data, col.unit, col.group, col.O, col.n, col.rt
       , fnlHigh = conf.high /n
     ) %>%
     select(-conf.low, -conf.high) %>% 
-    mutate(confLevel = ifelse(confLevel == 0.99, "threeSigma", "twoSigma")) %>% 
     rename(
       events = estimate
-      , fnlLimit = confLevel
-      )
+    )
   
   # this was just ported over - may be a better way to do this
   # create second df of units and if in-control T/F
