@@ -4,7 +4,7 @@
 # required packages / functions
 library(tidyverse)
 library(broom)
-source("./roundNiceNumber.r")
+source("C:/2017_projects/funnel/funnel/roundNiceNumber.r")
 
 # usage - input is a df
 # i.e. your call should look like this ...
